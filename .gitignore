@@ -1,7 +1,10 @@
 arch/
 nwjs/
+electron/
 node/
 package.nw
+package.electron
+WeChat_Dev_Tools_*_linux/
 cache/
 tmp/
 mew/
