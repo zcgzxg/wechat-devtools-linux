@@ -44,7 +44,15 @@ else
 fi
 
 notice "检查版本号"
-DEVTOOLS_VERSION=$( cat "$root_dir/package.nw/package.json" | grep -m 1 -Eo "\"[0-9]{1}\.[0-9]{2}\.[0-9]+" )
+package_dir="$root_dir/package.nw"
+runtime_dir="$root_dir/nwjs"
+runtime_name="nwjs"
+if [ -f "$root_dir/package.electron/app/package.json" ];then
+  package_dir="$root_dir/package.electron/app"
+  runtime_dir="$root_dir/electron"
+  runtime_name="electron"
+fi
+DEVTOOLS_VERSION=$( cat "$package_dir/package.json" | grep -m 1 -Eo "\"[0-9]{1}\.[0-9]{2}\.[0-9]+" )
 DEVTOOLS_VERSION="${DEVTOOLS_VERSION//\"/}"
 INPUT_VERSION=$( echo $VERSION | sed 's/v//' | sed 's/-.*//' )
 if [[ "$INPUT_VERSION" != "$DEVTOOLS_VERSION" ]];then
@@ -58,15 +66,21 @@ mkdir -p $build_dir
 notice "COPY bin"
 \cp -rf "$root_dir/bin" "$build_dir/bin"
 notice "COPY nwjs"
-\cp -drf "$root_dir/nwjs" "$build_dir/nwjs"
+\cp -drf "$runtime_dir" "$build_dir/$runtime_name"
 notice "COPY node"
-if [ -f "$root_dir/node/bin/node" ];then
+if [ "$runtime_name" == "nwjs" ] && [ -f "$root_dir/node/bin/node" ];then
   cd $build_dir/nwjs && rm -rf node node.exe
   \cp -rf "$root_dir/node/bin/node" "$build_dir/nwjs/node"
   cd "$build_dir/nwjs" && ln -s node.exe node
 fi
-notice "COPY package.nw"
-\cp -rf "$root_dir/package.nw" "$build_dir/package.nw"
+if [ "$runtime_name" == "electron" ];then
+  notice "COPY package.electron"
+  mkdir -p "$build_dir/package.electron"
+  \cp -rf "$root_dir/package.electron/app" "$build_dir/package.electron/app"
+else
+  notice "COPY package.nw"
+  \cp -rf "$root_dir/package.nw" "$build_dir/package.nw"
+fi
 
 notice "MAKE tar.gz"
 cd "$tmp_dir/tar" && tar -zcf "$store_dir/$PACKAGE_NAME.tar.gz" "$PACKAGE_NAME"

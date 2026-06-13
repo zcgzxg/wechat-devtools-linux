@@ -42,7 +42,15 @@ build_dir="$tmp_dir/build"
 mkdir -p $build_dir
 
 notice "检查版本号"
-DEVTOOLS_VERSION=$( cat "$root_dir/package.nw/package.json" | grep -m 1 -Eo "\"[0-9]{1}\.[0-9]{2}\.[0-9]+" )
+package_dir="$root_dir/package.nw"
+runtime_dir="$root_dir/nwjs"
+runtime_name="nwjs"
+if [ -f "$root_dir/package.electron/app/package.json" ];then
+  package_dir="$root_dir/package.electron/app"
+  runtime_dir="$root_dir/electron"
+  runtime_name="electron"
+fi
+DEVTOOLS_VERSION=$( cat "$package_dir/package.json" | grep -m 1 -Eo "\"[0-9]{1}\.[0-9]{2}\.[0-9]+" )
 DEVTOOLS_VERSION="${DEVTOOLS_VERSION//\"/}"
 INPUT_VERSION=$( echo $VERSION | sed 's/v//' | sed 's/-.*//' )
 if [[ "$INPUT_VERSION" != "$DEVTOOLS_VERSION" ]];then
@@ -68,8 +76,13 @@ mkdir -p $app_dir/usr/{src,bin}
 mkdir -p $app_dir/usr/share/{metainfo,icons}
 
 notice "COPY FILES"
-cp "$root_dir/bin/wechat-devtools" "$app_dir/bin/wechat-devtools"
-cp "$root_dir/bin/wechat-devtools-cli" "$app_dir/bin/wechat-devtools-cli"
+if [ "$runtime_name" == "electron" ];then
+  cp "$root_dir/bin/wechat-devtools-nightly" "$app_dir/bin/wechat-devtools"
+  cp "$root_dir/bin/wechat-devtools-cli-nightly" "$app_dir/bin/wechat-devtools-cli"
+else
+  cp "$root_dir/bin/wechat-devtools" "$app_dir/bin/wechat-devtools"
+  cp "$root_dir/bin/wechat-devtools-cli" "$app_dir/bin/wechat-devtools-cli"
+fi
 cp "$root_dir/res/icons/512x512.png" "$app_dir/wechat-devtools.png"
 \cp -rf "$root_dir/res/appimage"/* "$app_dir"
 cp $app_dir/usr/share/applications/*.desktop "$app_dir/io.github.msojocs.wechat_devtools.desktop"
@@ -84,9 +97,15 @@ fi
 EOF
 chmod +x "$app_dir/AppRun"
 
-cp -r "$root_dir/package.nw" "$app_dir/package.nw"
-cp -r "$root_dir/nwjs" "$app_dir/nwjs"
-if [ -f $root_dir/node/bin/node ];then
+if [ "$runtime_name" == "electron" ];then
+  mkdir -p "$app_dir/package.electron"
+  cp -r "$root_dir/package.electron/app" "$app_dir/package.electron/app"
+  cp -r "$root_dir/electron" "$app_dir/electron"
+else
+  cp -r "$root_dir/package.nw" "$app_dir/package.nw"
+  cp -r "$root_dir/nwjs" "$app_dir/nwjs"
+fi
+if [ "$runtime_name" == "nwjs" ] && [ -f $root_dir/node/bin/node ];then
   rm -rf "$app_dir/nwjs/node" "$app_dir/nwjs/node.exe"
   cp "$root_dir/node/bin/node" "$app_dir/nwjs/node"
   cd "$app_dir/nwjs/" && ln -s "node" "node.exe"

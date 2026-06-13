@@ -9,7 +9,15 @@ fail() {
 
 
 root_dir=$(cd `dirname $0`/.. && pwd -P)
-DEVTOOLS_VERSION=$( cat "$root_dir/package.nw/package.json" | grep -m 1 -Eo "\"[0-9]{1}\.[0-9]{2}\.[0-9]+" )
+package_dir="$root_dir/package.nw"
+runtime_dir="$root_dir/nwjs"
+runtime_name="nwjs"
+if [ -f "$root_dir/package.electron/app/package.json" ];then
+  package_dir="$root_dir/package.electron/app"
+  runtime_dir="$root_dir/electron"
+  runtime_name="electron"
+fi
+DEVTOOLS_VERSION=$( cat "$package_dir/package.json" | grep -m 1 -Eo "\"[0-9]{1}\.[0-9]{2}\.[0-9]+" )
 DEVTOOLS_VERSION="${DEVTOOLS_VERSION//\"/}"
 echo $BUILD_VERSION
 if [ -n "$1" ];then
@@ -59,8 +67,13 @@ mv "$build_dir/opt/apps/io.github.msojocs.wechat-devtools"/* $base_dir
 rm -r "$build_dir/opt/apps/io.github.msojocs.wechat-devtools"
 sed -i "s/BUILD_VERSION/${BUILD_VERSION//v/}/" "$build_dir/debian/control" "$build_dir/debian/changelog" "$base_dir/info"
 sed -i "s/io.github.msojocs.wechat-devtools/$package_name/g" "$base_dir/info" "$build_dir/debian/control" "$build_dir/debian/changelog"
-\cp -rf "$root_dir/bin/wechat-devtools" "$base_dir/files/bin/bin/wechat-devtools"
-\cp -rf "$root_dir/bin/wechat-devtools-cli" "$base_dir/files/bin/bin/wechat-devtools-cli"
+if [ "$runtime_name" == "electron" ];then
+  \cp -rf "$root_dir/bin/wechat-devtools-nightly" "$base_dir/files/bin/bin/wechat-devtools"
+  \cp -rf "$root_dir/bin/wechat-devtools-cli-nightly" "$base_dir/files/bin/bin/wechat-devtools-cli"
+else
+  \cp -rf "$root_dir/bin/wechat-devtools" "$base_dir/files/bin/bin/wechat-devtools"
+  \cp -rf "$root_dir/bin/wechat-devtools-cli" "$base_dir/files/bin/bin/wechat-devtools-cli"
+fi
 # 时间
 build_time=$(LANG=en_US date '+%a, %d %b %Y %H:%M:%S %z')
 sed -i "s#[A-Za-z]\+, [0-9]\+ [A-Za-z]\+ [0-9]\+ [0-9]\+:[0-9]\+:[0-9]\+ +[0-9]\+#${build_time}#" "$build_dir/debian/changelog"
@@ -86,9 +99,15 @@ mkdir -p "$build_dir/usr/share/applications" "$build_dir/usr/share/icons/hicolor
 # \cp -rf "$base_dir/entries/icons/hicolor/scalable/apps/$package_name.svg" "$build_dir/usr/share/icons/hicolor/scalable/apps/$package_name.svg"
 
 # 主体文件
-cp -r "$root_dir/package.nw" "$base_dir/files/bin/package.nw"
-cp -r "$root_dir/nwjs" "$base_dir/files/bin/nwjs"
-if [ -f "$root_dir/node/bin/node" ];then
+if [ "$runtime_name" == "electron" ];then
+  mkdir -p "$base_dir/files/bin/package.electron"
+  cp -r "$root_dir/package.electron/app" "$base_dir/files/bin/package.electron/app"
+  cp -r "$root_dir/electron" "$base_dir/files/bin/electron"
+else
+  cp -r "$root_dir/package.nw" "$base_dir/files/bin/package.nw"
+  cp -r "$root_dir/nwjs" "$base_dir/files/bin/nwjs"
+fi
+if [ "$runtime_name" == "nwjs" ] && [ -f "$root_dir/node/bin/node" ];then
   rm -rf "$base_dir/files/bin/nwjs"/{node,node.exe}
   cp "$root_dir/node/bin/node" "$base_dir/files/bin/nwjs/node"
   cd "$base_dir/files/bin/nwjs/" && ln -s "node" "node.exe"
