@@ -7,6 +7,16 @@
 # 
 
 root_dir=$(cd `dirname $0`/.. && pwd -P)
+runtime="nwjs"
+if [[ " $@ " == *" --channel nightly "* ]]; then
+  runtime="electron"
+elif command -v node >/dev/null 2>&1; then
+  runtime=$(node "$root_dir/tools/parse-config.js" --get-runtime $@)
+fi
+package_dir="$root_dir/package.nw"
+if [ "$runtime" == "electron" ]; then
+  package_dir="$root_dir/package.electron/app"
+fi
 
 export PATH="$root_dir/tools:$PATH"
 # 步骤
@@ -33,7 +43,7 @@ notice() {
 
 
 if [ $CURRENT_STEP == $INSTALL_START ];then
-  rm -rf "$root_dir"/{node,nwjs,package.nw}
+  rm -rf "$root_dir"/{node,nwjs,electron,package.nw,package.electron}
   echo "==========Initializing node=========="
   if [ -f "$root_dir/node/bin/node" ]; then
     step_switch $INSTALL_NPM_CONFIG_SUCCESS
@@ -55,6 +65,11 @@ fi
 export PATH="$root_dir/cache/npm/node_global/bin:$PATH"
 node --version
 npm --version
+runtime=$(node "$root_dir/tools/parse-config.js" --get-runtime $@)
+package_dir="$root_dir/package.nw"
+if [ "$runtime" == "electron" ]; then
+  package_dir="$root_dir/package.electron/app"
+fi
 
 if [[ -z "$HOME" || "$HOME" = "/" ]]; then
   # 部分环境HOME定义异常，导致权限问题
@@ -73,11 +88,20 @@ if [ $CURRENT_STEP == $INSTALL_NPM_CONFIG_SUCCESS ];then
 fi
 
 if [ $CURRENT_STEP == $INSTALL_GYP_SUCCESS ];then
-  echo "==========Initializing nwjs=========="
-  if [ -f "$root_dir/nwjs/nw" ]; then
-    success "nwjs安装完毕"
+  if [ "$runtime" == "electron" ]; then
+    echo "==========Initializing electron=========="
+    if [ -f "$root_dir/electron/electron" ]; then
+      success "electron安装完毕"
+    else
+      "$root_dir/tools/update-electron.sh" $@
+    fi
   else
-    "$root_dir/tools/update-nwjs.sh" $@
+    echo "==========Initializing nwjs=========="
+    if [ -f "$root_dir/nwjs/nw" ]; then
+      success "nwjs安装完毕"
+    else
+      "$root_dir/tools/update-nwjs.sh" $@
+    fi
   fi
   step_switch $INSTALL_NW_SUCCESS
 fi
@@ -104,14 +128,14 @@ if [ $CURRENT_STEP == $INSTALL_NW_SUCCESS ];then
     TARGET_VERSION="version=${VERSION_DATA}"
   fi
   echo "TARGET_VERSION: $TARGET_VERSION"
-  if [ ! -f "$root_dir/package.nw/package.json" ];then
+  if [ ! -f "$package_dir/package.json" ];then
     # 没装，直接装
     "$root_dir/tools/update-wechat-devtools.sh" $@
     
     step_switch $INSTALL_WECHAT_SUCCESS
   else
     # 装了，获取已安装版本
-    DEVTOOLS_VERSION=$( cat "$root_dir/package.nw/package.json" | grep -m 1 -Eo "\"[0-9]{1}\.[0-9]{2}\.[0-9]+" )
+    DEVTOOLS_VERSION=$( cat "$package_dir/package.json" | grep -m 1 -Eo "\"[0-9]{1}\.[0-9]{2}\.[0-9]+" )
     DEVTOOLS_VERSION="${DEVTOOLS_VERSION//\"/}"
     # 已安装, 比较目标版本
     if [ "$TARGET_VERSION" != "$DEVTOOLS_VERSION" ];then
@@ -123,34 +147,46 @@ fi
 
 if [ $CURRENT_STEP == $INSTALL_WECHAT_SUCCESS ];then
   notice "Patching wechat-devtools package name"
-  "$root_dir/tools/fix-package-name.js"
+  PACKAGE_DIR="$package_dir" "$root_dir/tools/fix-package-name.js"
 
   notice "Patching wechat-devtools editor selection autocopy"
   "$root_dir/tools/fix-selection-copy-node.js"
 
-  notice "Patching wechat-devtools CLI supports"
-  "$root_dir/tools/fix-cli.sh"
+  if [ "$runtime" != "electron" ]; then
+    notice "Patching wechat-devtools CLI supports"
+    "$root_dir/tools/fix-cli.sh"
 
-  notice "Patching wechat-devtools core.wxvpkg"
-  "$root_dir/tools/fix-core.sh"
+    notice "Patching wechat-devtools core.wxvpkg"
+    "$root_dir/tools/fix-core.sh"
+  fi
   step_switch $INSTALL_FIX_SUCCESS
 fi
 if [ $CURRENT_STEP == $INSTALL_FIX_SUCCESS ];then
-  notice "Rebuilding wechat-devtools node modules"
-  nwjs_version=$(node "$root_dir/tools/parse-config.js" --get-nwjs-version $@)
-  "$root_dir/tools/rebuild-node-modules.sh" "$nwjs_version" $@
+  if [ "$runtime" == "electron" ]; then
+    notice "Rebuilding wechat-devtools electron node modules"
+    electron_version=$(node "$root_dir/tools/parse-config.js" --get-electron-version $@)
+    "$root_dir/tools/rebuild-electron-node-modules.sh" "$electron_version" $@
+  else
+    notice "Rebuilding wechat-devtools node modules"
+    nwjs_version=$(node "$root_dir/tools/parse-config.js" --get-nwjs-version $@)
+    "$root_dir/tools/rebuild-node-modules.sh" "$nwjs_version" $@
+  fi
   step_switch $INSTALL_REBUILD_SUCCESS
 fi
 
 if [ $CURRENT_STEP == $INSTALL_REBUILD_SUCCESS ];then
   notice "Patching wechat-devtools"
-  "$root_dir/tools/fix-menu.sh"
+  if [ "$runtime" != "electron" ]; then
+    "$root_dir/tools/fix-menu.sh"
+  fi
 
   notice "Patching Other"
   "$root_dir/tools/fix-other.sh" $@
 
   notice "Replace Skyline"
-  "$root_dir/tools/replace-skyline.sh"
+  if [ "$runtime" != "electron" ]; then
+    "$root_dir/tools/replace-skyline.sh"
+  fi
 fi
 
 success "微信开发者工具安装完毕"
