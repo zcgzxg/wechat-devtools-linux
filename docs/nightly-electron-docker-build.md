@@ -126,12 +126,13 @@ tar -xzf WeChat_Dev_Tools_v2.02.2606122-1_x86_64_linux.tar.gz
 
 已验证可见窗口标题包括 `项目列表` / `WeChat Web Devtools`，GUI 可进入项目导入界面。
 
-如果需要使用 CLI，请先在 GUI 中打开服务端口：
+Nightly 启动器会固定开启 IDE HTTP 服务端口：
 
-1. 打开 Nightly GUI；
-2. 进入 `设置`；
-3. 进入 `安全设置`；
-4. 开启 `服务端口`。
+```bash
+--enable-service-port --ide-http-port 9420
+```
+
+这样可以避免 GUI 每次随机选择服务端口后，CLI 仍读取旧 `.ide` 端口文件导致连接失败。CLI 自身的回调端口默认从 `3799` 开始；GUI 的 IDE HTTP 服务端口固定为 `9420`。CLI 启动器也会在自己的 Electron 用户目录中预写 `.ide-status=On` 和 `.ide=9420`，确保 CLI 读取到同一个固定端口。
 
 开启后可验证：
 
@@ -139,7 +140,7 @@ tar -xzf WeChat_Dev_Tools_v2.02.2606122-1_x86_64_linux.tar.gz
 ./WeChat_Dev_Tools_v2.02.2606122-1_x86_64_linux/bin/wechat-devtools-cli-nightly islogin
 ```
 
-CLI 启动器会预创建 Electron CLI 所需的用户目录，避免首次运行时报 `.cli` 路径不存在。服务端口仍必须由 GUI 的安全设置开启，这是微信开发者工具官方安全开关。
+CLI 启动器会预创建 Electron CLI 所需的用户目录，避免首次运行时报 `.cli` 路径不存在。GUI 启动器会通过 `--enable-service-port --ide-http-port 9420` 固定开启并写入 IDE HTTP 服务端口。
 
 ## 验证命令
 
@@ -162,7 +163,7 @@ node tools/parse-config.js --channel nightly --get-electron-version
 - Electron 版本为 `36.6.0`；
 - GUI 可显示真实界面，不只是黑色窗口；
 - CLI `--help` 可以输出命令列表；
-- `islogin` 若提示服务端口关闭，则进入 GUI 手动开启服务端口。
+- CLI `islogin` 可连接固定的 IDE HTTP 服务端口 `9420`，正常返回登录状态。
 
 构建完成后，可用以下命令确认没有把构建产物写入当前仓库：
 
