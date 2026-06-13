@@ -61,6 +61,17 @@
 
 在项目的 `bin` 目录中有 `wechat-devtools-cli` 脚本，是微信开发者工具的命令行支持 的Linux版本。相关资料可以在[微信CLI命令行V2](https://developers.weixin.qq.com/miniprogram/dev/devtools/cli.html)上找到。
 
+# Nightly Electron 版本
+
+Nightly 版本的微信开发者工具已经切换到 Electron，不再使用 NW.js。本项目已增加独立的 Nightly Electron 构建和运行路径，默认稳定版仍保持 NW.js 流程不变。
+
+Nightly 相关入口：
+
+* 构建：`./tools/setup-wechat-devtools.sh --channel nightly`
+* GUI 启动：`./bin/wechat-devtools-nightly`
+* CLI 启动：`./bin/wechat-devtools-cli-nightly`
+* Docker 隔离构建、黑屏规避、服务端口开启步骤：请阅读 [Nightly Electron Docker 构建说明](docs/nightly-electron-docker-build.md)
+
 # 使用方法
 
 1. [在线安装](#在线安装)
