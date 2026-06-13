@@ -1,0 +1,64 @@
+#!/bin/bash
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+root_dir="$( cd -P "$( dirname "$SOURCE" )"/.. >/dev/null 2>&1 && pwd )"
+
+if [ -z "$XDG_CONFIG_HOME" ];then
+  DATA_DIR=$HOME/.config
+else
+  DATA_DIR=$XDG_CONFIG_HOME
+fi
+
+APP_DIR="$root_dir/package.electron/app"
+APP_NAME="wechatwebdevtools"
+if [ -f "$APP_DIR/package.json" ]; then
+  PARSED_APP_NAME=$(grep -m 1 -o '"appname"[[:space:]]*:[[:space:]]*"[^"]*"' "$APP_DIR/package.json" | sed 's/.*"appname"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+  if [ -z "$PARSED_APP_NAME" ]; then
+    PARSED_APP_NAME=$(grep -m 1 -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' "$APP_DIR/package.json" | sed 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+  fi
+  if [ -n "$PARSED_APP_NAME" ]; then
+    APP_NAME="$PARSED_APP_NAME"
+  fi
+fi
+
+export WECHAT_DEVTOOLS_DIR="$root_dir/electron"
+export APPDATA="$DATA_DIR/$APP_NAME"
+export USERPROFILE="$APPDATA"
+export PATH="$root_dir/electron:$PATH"
+
+clean_cache() {
+  echo "清理缓存";
+  rm -rf "$APPDATA/WeappCache";
+  rm -rf "$APPDATA/WeappVendor";
+  rm -rf "$DATA_DIR/wechat_devtools"
+}
+
+if [[ -f "$APPDATA/.build_time" ]];then
+  diff "$APPDATA/.build_time" "$APP_DIR/.build_time" >/dev/null;
+  if [ ! "$?" == "0" ];then
+    \cp -f "$APP_DIR/.build_time" "$APPDATA/.build_time";
+    clean_cache;
+  fi;
+else
+  mkdir -p "$APPDATA"
+  \cp -f "$APP_DIR/.build_time" "$APPDATA/.build_time";
+  clean_cache;
+fi;
+
+EXTENSION="--load-extension=$APPDATA/WeappPlugin"
+INSPECTOR="--custom-devtools-frontend=file://$APP_DIR/js/ideplugin/inspector"
+
+export LANG=${LANG:-zh_CN.UTF-8}
+exec "$root_dir/electron/electron" \
+  --no-sandbox \
+  "$APP_DIR" \
+  "$EXTENSION" \
+  "$INSPECTOR" \
+  --ozone-platform=x11 \
+  --disable-features=UseOzonePlatform \
+  "$@"

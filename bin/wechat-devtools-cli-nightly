@@ -1,0 +1,50 @@
+#!/bin/bash
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+root_dir="$( cd -P "$( dirname "$SOURCE" )"/.. >/dev/null 2>&1 && pwd )"
+
+cd "$root_dir/bin"
+
+if [ -z "$XDG_CONFIG_HOME" ];then
+  DATA_DIR=$HOME/.config
+else
+  DATA_DIR=$XDG_CONFIG_HOME
+fi
+
+APP_DIR="$root_dir/package.electron/app"
+APP_NAME="wechatwebdevtools"
+PACKAGE_NAME="wechat-devtools"
+if [ -f "$APP_DIR/package.json" ]; then
+  PARSED_APP_NAME=$(grep -m 1 -o '"appname"[[:space:]]*:[[:space:]]*"[^"]*"' "$APP_DIR/package.json" | sed 's/.*"appname"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+  if [ -z "$PARSED_APP_NAME" ]; then
+    PARSED_APP_NAME="$PACKAGE_NAME"
+  fi
+  if [ -n "$PARSED_APP_NAME" ]; then
+    APP_NAME="$PARSED_APP_NAME"
+  fi
+fi
+CLI="$APP_DIR/js/common/cli/index.js"
+
+export WECHAT_DEVTOOLS_DIR="$root_dir/electron"
+export APPDATA="$DATA_DIR/$APP_NAME"
+export USERPROFILE="$APPDATA"
+export PATH="$root_dir/electron:$PATH"
+export ELECTRON_RUN_AS_NODE=1
+mkdir -p "$APPDATA/Default"
+
+if command -v md5sum >/dev/null 2>&1; then
+  PRODUCT_HASH=$(printf '%s' "$root_dir/electron/resources/app.asar" | md5sum | cut -d ' ' -f 1)
+  mkdir -p "$USERPROFILE/AppData/Local/$APP_NAME/User Data/$PRODUCT_HASH/Default"
+  mkdir -p "$USERPROFILE/AppData/Local/$PACKAGE_NAME/User Data/$PRODUCT_HASH/Default"
+fi
+
+BOOTSTRAP_JS='const e=process.argv[1]; const a=process.argv.slice(2); process.env.cwd=process.cwd(); process.argv=[process.execPath,"--ms-enable-electron-run-as-node",e,"--electron"].concat(a); require(e);'
+"$root_dir/electron/electron" -e "$BOOTSTRAP_JS" "$CLI" "$@"
+if [ ! -z "$APPIMAGE" ];then
+  tail -f /etc/issue
+fi
