@@ -39,8 +39,12 @@ mkdir -p "$APPDATA/Default"
 
 if command -v md5sum >/dev/null 2>&1; then
   PRODUCT_HASH=$(printf '%s' "$root_dir/electron/resources/app.asar" | md5sum | cut -d ' ' -f 1)
-  mkdir -p "$USERPROFILE/AppData/Local/$APP_NAME/User Data/$PRODUCT_HASH/Default"
-  mkdir -p "$USERPROFILE/AppData/Local/$PACKAGE_NAME/User Data/$PRODUCT_HASH/Default"
+  APP_USER_DATA_DIR="$USERPROFILE/AppData/Local/$APP_NAME/User Data/$PRODUCT_HASH/Default"
+  PACKAGE_USER_DATA_DIR="$USERPROFILE/AppData/Local/$PACKAGE_NAME/User Data/$PRODUCT_HASH/Default"
+  mkdir -p "$APP_USER_DATA_DIR"
+  mkdir -p "$PACKAGE_USER_DATA_DIR"
+  printf 'On' > "$PACKAGE_USER_DATA_DIR/.ide-status"
+  printf '9420' > "$PACKAGE_USER_DATA_DIR/.ide"
 fi
 
 BOOTSTRAP_JS='const e=process.argv[1]; const a=process.argv.slice(2); process.env.cwd=process.cwd(); process.argv=[process.execPath,"--ms-enable-electron-run-as-node",e,"--electron"].concat(a); require(e);'

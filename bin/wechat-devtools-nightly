@@ -59,6 +59,8 @@ exec "$root_dir/electron/electron" \
   "$APP_DIR" \
   "$EXTENSION" \
   "$INSPECTOR" \
+  --enable-service-port \
+  --ide-http-port 9420 \
   --ozone-platform=x11 \
   --disable-features=UseOzonePlatform \
   "$@"
