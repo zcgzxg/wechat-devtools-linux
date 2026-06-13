@@ -54,6 +54,14 @@
             "0.46.4": "14.5.0"
         }
     },
+    "electron": {
+        "urls": {
+            "x64": {
+                "version": "36.6.0",
+                "template": "https://github.com/electron/electron/releases/download/v${version}/electron-v${version}-linux-x64.zip"
+            }
+        }
+    },
     "node": {
         "urls": {
             "x64": {
@@ -76,6 +84,20 @@
     },
     "devtools": {
         "version": "2.01.2510290",
-        "template": "https://servicewechat.com/wxa-dev-logic/download_redirect?type=win32_x64&from=mpwiki&download_version=${version}&version_type=1"
+        "template": "https://servicewechat.com/wxa-dev-logic/download_redirect?type=win32_x64&from=mpwiki&download_version=${version}&version_type=1",
+        "channels": {
+            "stable": {
+                "version": "2.01.2510290",
+                "runtime": "nwjs",
+                "package": "nw",
+                "template": "https://servicewechat.com/wxa-dev-logic/download_redirect?type=win32_x64&from=mpwiki&download_version=${version}&version_type=1"
+            },
+            "nightly": {
+                "version": "2.02.2606122",
+                "runtime": "electron",
+                "package": "electron",
+                "template": "https://servicewechat.com/wxa-dev-logic/download_redirect?type=win32_x64&from=mpwiki&download_version=${version}&version_type=2"
+            }
+        }
     }
 }

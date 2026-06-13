@@ -9,6 +9,9 @@ const options = {
     '--arch': {
         type: 'string',
     },
+    '--channel': {
+        type: 'string',
+    },
     '--get-arch': {
         type: 'boolean',
     },
@@ -16,6 +19,12 @@ const options = {
         type: 'boolean',
     },
     '--get-nwjs-version': {
+        type: 'boolean',
+    },
+    '--get-electron-url': {
+        type: 'boolean',
+    },
+    '--get-electron-version': {
         type: 'boolean',
     },
     '--get-node-url': {
@@ -36,10 +45,38 @@ const options = {
     '--get-devtools-version': {
         type: 'boolean',
     },
+    '--get-devtools-package': {
+        type: 'boolean',
+    },
+    '--get-runtime': {
+        type: 'boolean',
+    },
 }
 const configArg = {
     arch: process.arch,
+    channel: 'stable',
 }
+
+const allowedChannels = Object.keys((config.devtools && config.devtools.channels) || { stable: true });
+
+function getDevtoolsConfig() {
+    const channels = config.devtools.channels || {};
+    return channels[configArg.channel] || config.devtools;
+}
+
+function getArchConfig(sectionName) {
+    const section = config[sectionName];
+    if (!section || !section.urls || !section.urls[configArg.arch]) {
+        console.error(`Unsupported ${sectionName} arch: ${configArg.arch}`);
+        exit(1);
+    }
+    return section.urls[configArg.arch];
+}
+
+function replaceVersion(template, version) {
+    return template.replace(/\${version}/g, version);
+}
+
 for (let i = 0; i < args.length; i++) {
     if (options[args[i]]) {
         if (options[args[i]].type === 'string') {
@@ -50,6 +87,13 @@ for (let i = 0; i < args.length; i++) {
                         configArg.arch = args[i];
                     } else {
                         console.error(`Invalid value for option --arch: ${args[i]}`);
+                        exit(1);
+                    }
+                } else if (args[i - 1] === '--channel') {
+                    if (allowedChannels.includes(args[i])) {
+                        configArg.channel = args[i];
+                    } else {
+                        console.error(`Invalid value for option --channel: ${args[i]}`);
                         exit(1);
                     }
                 }
@@ -69,12 +113,24 @@ if (configArg['get-arch']) {
 }
 
 if (configArg['get-nwjs-url']) {
-    console.log(config.nwjs.urls[configArg.arch].template.replace(/\${version}/g, config.nwjs.urls[configArg.arch].version));
+    const nwjsConfig = getArchConfig('nwjs');
+    console.log(replaceVersion(nwjsConfig.template, nwjsConfig.version));
     exit(0);
 }
 
 if (configArg['get-nwjs-version']) {
-    console.log(config.nwjs.urls[configArg.arch].version);
+    console.log(getArchConfig('nwjs').version);
+    exit(0);
+}
+
+if (configArg['get-electron-url']) {
+    const electronConfig = getArchConfig('electron');
+    console.log(replaceVersion(electronConfig.template, electronConfig.version));
+    exit(0);
+}
+
+if (configArg['get-electron-version']) {
+    console.log(getArchConfig('electron').version);
     exit(0);
 }
 
@@ -99,11 +155,22 @@ if (configArg['get-compiler-version']) {
 }
 
 if (configArg['get-devtools-url']) {
-    console.log(config.devtools.template.replace(/\${version}/g, config.devtools.version.replace(/\./g, '')));
+    const devtoolsConfig = getDevtoolsConfig();
+    console.log(replaceVersion(devtoolsConfig.template, devtoolsConfig.version.replace(/\./g, '')));
     exit(0);
 }
 
 if (configArg['get-devtools-version']) {
-    console.log(config.devtools.version);
+    console.log(getDevtoolsConfig().version);
+    exit(0);
+}
+
+if (configArg['get-devtools-package']) {
+    console.log(getDevtoolsConfig().package || 'nw');
+    exit(0);
+}
+
+if (configArg['get-runtime']) {
+    console.log(getDevtoolsConfig().runtime || 'nwjs');
     exit(0);
 }
