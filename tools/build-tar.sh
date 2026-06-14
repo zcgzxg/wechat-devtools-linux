@@ -70,7 +70,7 @@ notice "COPY nwjs"
 notice "COPY node"
 if [ "$runtime_name" == "nwjs" ] && [ -f "$root_dir/node/bin/node" ];then
   cd $build_dir/nwjs && rm -rf node node.exe
-  \cp -rf "$root_dir/node/bin/node" "$build_dir/nwjs/node"
+  \cp -rf "$root_dir/node/bin/node" "$build_dir/nwjs/node.exe"
   cd "$build_dir/nwjs" && ln -s node.exe node
 fi
 if [ "$runtime_name" == "electron" ];then
