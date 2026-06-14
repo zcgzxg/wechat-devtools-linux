@@ -140,7 +140,7 @@ Nightly 启动器会固定开启 IDE HTTP 服务端口：
 ./WeChat_Dev_Tools_v2.02.2606122-1_x86_64_linux/bin/wechat-devtools-cli-nightly islogin
 ```
 
-CLI 启动器会预创建 Electron CLI 所需的用户目录，避免首次运行时报 `.cli` 路径不存在。GUI 启动器会通过 `--enable-service-port --ide-http-port 9420` 固定开启并写入 IDE HTTP 服务端口。
+CLI 启动器会预创建 Electron CLI 所需的用户目录，避免首次运行时报 `.cli` 路径不存在。GUI 启动器会通过 `--enable-service-port --ide-http-port 9420` 固定开启并写入 IDE HTTP 服务端口。对于 `login`、`preview`、`upload` 等依赖 IDE 的 CLI 命令，CLI 启动器会先检查 `9420` 是否可连接；如果 IDE 没有运行，会先以 GUI 启动器拉起 Electron Nightly，并等待固定端口就绪，避免官方 CLI 在 Linux 下回退到 Windows 专用的 `./wechat-devtools.exe` 启动路径。
 
 ## 验证命令
 
@@ -164,6 +164,7 @@ node tools/parse-config.js --channel nightly --get-electron-version
 - GUI 可显示真实界面，不只是黑色窗口；
 - CLI `--help` 可以输出命令列表；
 - CLI `islogin` 可连接固定的 IDE HTTP 服务端口 `9420`，正常返回登录状态。
+- CLI `login` 可连接固定的 IDE HTTP 服务端口 `9420` 并生成登录二维码，不应出现 `spawn ./wechat-devtools.exe ENOENT`。
 
 构建完成后，可用以下命令确认没有把构建产物写入当前仓库：
 
