@@ -29,6 +29,7 @@ if [ -f "$APP_DIR/package.json" ]; then
   fi
 fi
 CLI="$APP_DIR/js/common/cli/index.js"
+IDE_HTTP_PORT=9420
 
 export WECHAT_DEVTOOLS_DIR="$root_dir/electron"
 export APPDATA="$DATA_DIR/$APP_NAME"
@@ -44,8 +45,40 @@ if command -v md5sum >/dev/null 2>&1; then
   mkdir -p "$APP_USER_DATA_DIR"
   mkdir -p "$PACKAGE_USER_DATA_DIR"
   printf 'On' > "$PACKAGE_USER_DATA_DIR/.ide-status"
-  printf '9420' > "$PACKAGE_USER_DATA_DIR/.ide"
+  printf '%s' "$IDE_HTTP_PORT" > "$PACKAGE_USER_DATA_DIR/.ide"
 fi
+
+port_ready() {
+  timeout 1 bash -c "</dev/tcp/127.0.0.1/$IDE_HTTP_PORT" >/dev/null 2>&1
+}
+
+start_gui_if_needed() {
+  case "${1:-}" in
+    ""|--help|-h|help)
+      return 0
+      ;;
+  esac
+
+  if port_ready; then
+    return 0
+  fi
+
+  GUI_LAUNCHER="$root_dir/bin/wechat-devtools-nightly"
+  if [ ! -x "$GUI_LAUNCHER" ]; then
+    GUI_LAUNCHER="$root_dir/bin/wechat-devtools"
+  fi
+
+  setsid -f env -u ELECTRON_RUN_AS_NODE "$GUI_LAUNCHER" >/tmp/wechat-devtools-nightly-cli-start.log 2>&1 < /dev/null
+
+  for _ in $(seq 1 60); do
+    if port_ready; then
+      return 0
+    fi
+    sleep 1
+  done
+}
+
+start_gui_if_needed "$1"
 
 BOOTSTRAP_JS='const e=process.argv[1]; const a=process.argv.slice(2); process.env.cwd=process.cwd(); process.argv=[process.execPath,"--ms-enable-electron-run-as-node",e,"--electron"].concat(a); require(e);'
 "$root_dir/electron/electron" -e "$BOOTSTRAP_JS" "$CLI" "$@"
