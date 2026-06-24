@@ -65,6 +65,9 @@ build_dir="$tmp_dir/tar/$PACKAGE_NAME"
 mkdir -p $build_dir
 notice "COPY bin"
 \cp -rf "$root_dir/bin" "$build_dir/bin"
+if [ "$runtime_name" == "electron" ] && [ ! -e "$build_dir/bin/wechat-devtools.exe" ];then
+  ln -s wechat-devtools-nightly "$build_dir/bin/wechat-devtools.exe"
+fi
 notice "COPY nwjs"
 \cp -drf "$runtime_dir" "$build_dir/$runtime_name"
 notice "COPY node"

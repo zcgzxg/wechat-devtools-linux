@@ -47,6 +47,26 @@ if [ -f package-lock.json ]; then
   npm install --ignore-scripts --registry=https://registry.npmmirror.com
 fi
 
+if [ -f node_modules/@swc/core/package.json ]; then
+  swc_version=$(node -e 'process.stdout.write(require("./node_modules/@swc/core/package.json").version)')
+  case "$arch" in
+    x64)
+      swc_native_package="@swc/core-linux-x64-gnu@${swc_version}"
+      ;;
+    arm64|aarch64)
+      swc_native_package="@swc/core-linux-arm64-gnu@${swc_version}"
+      ;;
+    *)
+      swc_native_package=""
+      ;;
+  esac
+
+  if [ -n "$swc_native_package" ]; then
+    notice "Installing Electron Linux SWC native binding: $swc_native_package"
+    npm install --ignore-scripts --no-save --registry=https://registry.npmmirror.com "$swc_native_package"
+  fi
+fi
+
 npx --yes @electron/rebuild@3.7.2 \
   --version "$ELECTRON_VERSION" \
   --arch "$arch" \

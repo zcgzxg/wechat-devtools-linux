@@ -10,6 +10,34 @@ if [ "$runtime" == "electron" ];then
   package_dir="$root_dir/package.electron/app"
 fi
 
+if [ "$runtime" == "electron" ];then
+  echo "fix: electron direct-open appid context"
+  node - "$package_dir" <<'NODE'
+const fs = require('fs');
+const path = require('path');
+
+const packageDir = process.argv[2];
+const jsDir = path.join(packageDir, 'js');
+if (!fs.existsSync(jsDir)) process.exit(0);
+
+const source = 'requestWithAppId({url:i,method:"get",needToken:1,forceLogin:-1})';
+const target = 'requestWithAppId({url:i,method:"get",needToken:1,forceLogin:-1,appid:this.requestService._appid||process.env.WECHAT_DEVTOOLS_APPID})';
+
+for (const entry of fs.readdirSync(jsDir)) {
+  if (!entry.endsWith('.js')) continue;
+  const file = path.join(jsDir, entry);
+  const content = fs.readFileSync(file, 'utf8');
+  if (content.includes(target)) {
+    process.exit(0);
+  }
+  if (!content.includes(source)) continue;
+  fs.writeFileSync(file, content.replace(source, target));
+  console.log(`patched appid context: ${file}`);
+  process.exit(0);
+}
+NODE
+fi
+
 echo "replace: wcc,wcsc linux version"
 compiler_version=$(node "$root_dir/tools/parse-config.js" --get-compiler-version $@)
 arch=$(node "$root_dir/tools/parse-config.js" --get-arch $@)
