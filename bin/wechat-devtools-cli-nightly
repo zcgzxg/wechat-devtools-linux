@@ -7,6 +7,102 @@ while [ -h "$SOURCE" ]; do
   [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
 done
 root_dir="$( cd -P "$( dirname "$SOURCE" )"/.. >/dev/null 2>&1 && pwd )"
+caller_dir="$PWD"
+
+project_appid() {
+  local project_path="$1"
+  node -e '
+const fs = require("fs");
+const path = require("path");
+const projectPath = process.argv[1];
+if (!projectPath) process.exit(0);
+const configPath = path.join(projectPath, "project.config.json");
+try {
+  const appid = JSON.parse(fs.readFileSync(configPath, "utf8")).appid;
+  if (typeof appid === "string" && appid.length > 0) process.stdout.write(appid);
+} catch (_) {}
+' "$project_path"
+}
+
+absolute_project_path() {
+  local project_path="$1"
+  if [[ "$project_path" != /* ]]; then
+    project_path="$caller_dir/$project_path"
+  fi
+
+  if command -v realpath >/dev/null 2>&1; then
+    realpath -m "$project_path"
+    return
+  fi
+
+  node -e '
+const path = require("path");
+process.stdout.write(path.resolve(process.argv[1]));
+' "$project_path"
+}
+
+normalize_cli_args() {
+  local normalized=()
+  local arg
+  local project_path=""
+  local has_appid=0
+  while [ "$#" -gt 0 ]; do
+    arg="$1"
+    case "$arg" in
+      --project)
+        normalized+=("$arg")
+        shift
+        if [ "$#" -gt 0 ]; then
+          project_path="$(absolute_project_path "$1")"
+          normalized+=("$project_path")
+        fi
+        ;;
+      --project=*)
+        project_path="$(absolute_project_path "${arg#--project=}")"
+        normalized+=("--project=$project_path")
+        ;;
+      --appid)
+        has_appid=1
+        normalized+=("$arg")
+        shift
+        if [ "$#" -gt 0 ]; then
+          normalized+=("$1")
+        fi
+        ;;
+      --appid=*)
+        has_appid=1
+        normalized+=("$arg")
+        ;;
+      *)
+        normalized+=("$arg")
+        ;;
+    esac
+    shift
+  done
+  if [ "$has_appid" -eq 0 ] && [ -n "$project_path" ]; then
+    local appid
+    appid="$(project_appid "$project_path")"
+    if [ -n "$appid" ]; then
+      normalized+=("--appid" "$appid")
+    fi
+  fi
+  printf '%s\0' "${normalized[@]}"
+}
+
+readarray -d '' CLI_ARGS < <(normalize_cli_args "$@")
+
+for ((idx=0; idx<${#CLI_ARGS[@]}; idx++)); do
+  case "${CLI_ARGS[$idx]}" in
+    --appid)
+      if [ $((idx + 1)) -lt ${#CLI_ARGS[@]} ]; then
+        export WECHAT_DEVTOOLS_APPID="${CLI_ARGS[$((idx + 1))]}"
+      fi
+      ;;
+    --appid=*)
+      export WECHAT_DEVTOOLS_APPID="${CLI_ARGS[$idx]#--appid=}"
+      ;;
+  esac
+done
 
 cd "$root_dir/bin"
 
@@ -36,6 +132,7 @@ export APPDATA="$DATA_DIR/$APP_NAME"
 export USERPROFILE="$APPDATA"
 export PATH="$root_dir/electron:$PATH"
 export ELECTRON_RUN_AS_NODE=1
+export WECHAT_DEVTOOLS_CLI_CWD="$caller_dir"
 mkdir -p "$APPDATA/Default"
 
 if command -v md5sum >/dev/null 2>&1; then
@@ -78,10 +175,10 @@ start_gui_if_needed() {
   done
 }
 
-start_gui_if_needed "$1"
+start_gui_if_needed "${CLI_ARGS[0]}"
 
-BOOTSTRAP_JS='const e=process.argv[1]; const a=process.argv.slice(2); process.env.cwd=process.cwd(); process.argv=[process.execPath,"--ms-enable-electron-run-as-node",e,"--electron"].concat(a); require(e);'
-"$root_dir/electron/electron" -e "$BOOTSTRAP_JS" "$CLI" "$@"
+BOOTSTRAP_JS='const e=process.argv[1]; const a=process.argv.slice(2); process.env.cwd=process.env.WECHAT_DEVTOOLS_CLI_CWD || process.cwd(); process.argv=[process.execPath,"--ms-enable-electron-run-as-node",e,"--electron"].concat(a); require(e);'
+"$root_dir/electron/electron" -e "$BOOTSTRAP_JS" "$CLI" "${CLI_ARGS[@]}"
 if [ ! -z "$APPIMAGE" ];then
   tail -f /etc/issue
 fi
