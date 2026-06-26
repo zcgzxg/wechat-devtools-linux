@@ -76,6 +76,36 @@ if [ -d "${package_dir}/node_modules/wcc-exec" ];then
   cd "${package_dir}/node_modules/wcc-exec" && chmod +x wcc wcsc && rm -rf wcc.exe wcsc.exe
 fi
 
+# 修复 agent skill/skyline 的 glassEasel 编译：parser 路径在非mac平台误用 wcc.exe(Linux无此文件,spawn失败致 skill 运行时 not defined)，改为仅 win32 加 .exe
+if [ "$runtime" == "electron" ];then
+  echo "fix: glassEasel wxml/wxss parser path (wcc.exe -> wcc on linux)"
+  node - "$package_dir" <<'NODE'
+const fs = require('fs');
+const path = require('path');
+const jsDir = path.join(process.argv[2], 'js');
+if (!fs.existsSync(jsDir)) process.exit(0);
+const reWcc = /const e=h\?"wcc":"wcc\.exe";/;
+const reWcsc = /const e=h\?"wcsc":"wcsc\.exe";/;
+const newWcc = 'const e="win32"===process.platform?"wcc.exe":"wcc";';
+const newWcsc = 'const e="win32"===process.platform?"wcsc.exe":"wcsc";';
+let patched = false;
+for (const entry of fs.readdirSync(jsDir)) {
+  if (!entry.endsWith('.js')) continue;
+  const file = path.join(jsDir, entry);
+  let content;
+  try { content = fs.readFileSync(file, 'utf8'); } catch (_) { continue; }
+  if (!reWcc.test(content) && !reWcsc.test(content)) continue;
+  const updated = content.replace(reWcc, newWcc).replace(reWcsc, newWcsc);
+  if (updated !== content) {
+    fs.writeFileSync(file, updated);
+    console.log(`patched glassEasel parser path: ${file}`);
+    patched = true;
+  }
+}
+if (!patched) console.log('glassEasel parser path: nothing to patch (already fixed or pattern changed)');
+NODE
+fi
+
 # 修复：可视化用的wcc,wcsc
 echo "fix: wcc,wcsc"
 if [ "$runtime" == "electron" ] && [ -d "${package_dir}/node_modules/wcc-electron/build/Release" ];then
