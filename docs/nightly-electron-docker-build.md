@@ -142,6 +142,24 @@ Nightly 启动器会固定开启 IDE HTTP 服务端口：
 
 CLI 启动器会预创建 Electron CLI 所需的用户目录，避免首次运行时报 `.cli` 路径不存在。GUI 启动器会通过 `--enable-service-port --ide-http-port 9420` 固定开启并写入 IDE HTTP 服务端口。对于 `login`、`preview`、`upload` 等依赖 IDE 的 CLI 命令，CLI 启动器会先检查 `9420` 是否可连接；如果 IDE 没有运行，会先以 GUI 启动器拉起 Electron Nightly，并等待固定端口就绪，避免官方 CLI 在 Linux 下回退到 Windows 专用的 `./wechat-devtools.exe` 启动路径。
 
+## 禁用更新检测
+
+Nightly Linux 包由本项目重新打包生成，官方更新流程仍会按 Windows/macOS 产物逻辑检查并弹出更新提示，但更新安装本身在当前 Linux 包内不可用。为避免反复联网检查和弹出 `版本更新提示`，构建脚本会禁用 Nightly 的更新检测入口。
+
+相关补丁：
+
+- `tools/fix-menu.sh --channel nightly` 会把 `res/scripts/hackrequire.js` 注入到 `package.electron/app/js/unpack/hackrequire/index.js`；
+- `res/scripts/hackrequire.js` 会拦截标题以 `版本更新提示` 开头的 `nw.Window.open()`，直接返回空窗口对象，不再打开更新提示窗口；
+- `tools/fix-other.sh --channel nightly` 会定位 Electron 静态配置更新模块，使 `fetchManifest()` 直接返回空对象，并让 `startCheckUpdate()` 清理 timer 后直接返回。
+
+验证当前展开包是否已经注入补丁：
+
+```bash
+rg -n "update checks disabled|skip startCheckUpdate|disable update prompt window" package.electron/app/js
+```
+
+正常情况下，Nightly 启动后不应再请求更新 manifest，也不应再弹出版本更新提示。
+
 ## 验证命令
 
 修改 Nightly 相关脚本后，至少执行：
