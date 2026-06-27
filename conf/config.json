@@ -93,7 +93,7 @@
                 "template": "https://servicewechat.com/wxa-dev-logic/download_redirect?type=win32_x64&from=mpwiki&download_version=${version}&version_type=1"
             },
             "nightly": {
-                "version": "2.02.2606122",
+                "version": "2.02.2606252",
                 "runtime": "electron",
                 "package": "electron",
                 "template": "https://servicewechat.com/wxa-dev-logic/download_redirect?type=win32_x64&from=mpwiki&download_version=${version}&version_type=2"

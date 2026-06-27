@@ -5,6 +5,40 @@ notice() {
   echo -e "\033[36m $1 \033[0m "
 }
 
+install_swc_native_package() {
+  local swc_native_package="$1"
+  local package_name="${swc_native_package%@*}"
+  local package_version="${swc_native_package##*@}"
+  local package_dir_name="${package_name##*/}"
+  local scope_dir="$package_dir/node_modules/${package_name%/*}"
+  local target_dir="$package_dir/node_modules/$package_name"
+  local cache_dir="$root_dir/cache/npm/swc-native"
+  local tarball=""
+  local candidate=""
+  local extract_dir="$cache_dir/${package_dir_name}-${package_version}"
+
+  mkdir -p "$cache_dir"
+  for candidate in "$cache_dir"/*"${package_dir_name}-${package_version}.tgz"; do
+    if [ -f "$candidate" ]; then
+      tarball="$candidate"
+      break
+    fi
+  done
+  if [ -z "$tarball" ]; then
+    tarball=$(npm pack --json --registry=https://registry.npmmirror.com --pack-destination "$cache_dir" "$swc_native_package" \
+      | node -e 'let data=""; process.stdin.on("data", c => data += c); process.stdin.on("end", () => process.stdout.write(JSON.parse(data)[0].filename));')
+    tarball="$cache_dir/$tarball"
+  fi
+
+  rm -rf "$extract_dir"
+  mkdir -p "$extract_dir"
+  tar -xzf "$tarball" -C "$extract_dir"
+  mkdir -p "$scope_dir"
+  rm -rf "$target_dir"
+  mv "$extract_dir/package" "$target_dir"
+  rm -rf "$extract_dir"
+}
+
 fail() {
   echo -e "\033[41;37m 失败 \033[0m $1"
 }
@@ -63,7 +97,7 @@ if [ -f node_modules/@swc/core/package.json ]; then
 
   if [ -n "$swc_native_package" ]; then
     notice "Installing Electron Linux SWC native binding: $swc_native_package"
-    npm install --ignore-scripts --no-save --registry=https://registry.npmmirror.com "$swc_native_package"
+    install_swc_native_package "$swc_native_package"
   fi
 fi
 
