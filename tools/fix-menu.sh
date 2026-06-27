@@ -7,9 +7,13 @@ warn() {
     echo -e "\033[43;37m 警告 \033[0m $1"
 }
 root_dir=$(cd `dirname $0`/.. && pwd -P)
-NW_PACKAGE_DIR="$root_dir/package.nw"
+runtime=$(node "$root_dir/tools/parse-config.js" --get-runtime "$@")
+PACKAGE_DIR="$root_dir/package.nw"
+if [ "$runtime" == "electron" ]; then
+    PACKAGE_DIR="$root_dir/package.electron/app"
+fi
 
-cd "$NW_PACKAGE_DIR"
+cd "$PACKAGE_DIR"
 target_file=js/unpack/hackrequire/index.js
 
 if [ ! -f "$target_file" ]; then

@@ -38,6 +38,41 @@ for (const entry of fs.readdirSync(jsDir)) {
 NODE
 fi
 
+if [ "$runtime" == "electron" ];then
+  echo "fix: disable electron update checks"
+  node - "$package_dir" <<'NODE'
+const fs = require('fs');
+const path = require('path');
+
+const jsDir = path.join(process.argv[2], 'js');
+if (!fs.existsSync(jsDir)) process.exit(0);
+
+const fetchPattern = 'function fetchManifest(localManifest) {';
+const startPattern = 'const startCheckUpdate = () => {';
+
+let patched = false;
+for (const entry of fs.readdirSync(jsDir)) {
+  if (!entry.endsWith('.js')) continue;
+  const file = path.join(jsDir, entry);
+  let content;
+  try { content = fs.readFileSync(file, 'utf8'); } catch (_) { continue; }
+  if (!content.includes(fetchPattern) || !content.includes(startPattern)) continue;
+  if (content.includes('[wechat-devtools] update checks disabled')) {
+    patched = true;
+    break;
+  }
+  const updated = content
+    .replace(fetchPattern, `${fetchPattern}\n    logger.info('[wechat-devtools] update checks disabled');\n    return Promise.resolve({});`)
+    .replace(startPattern, `${startPattern}\n    logger.info('[wechat-devtools] skip startCheckUpdate');\n    clearInterval(updateTimer);\n    return;`);
+  fs.writeFileSync(file, updated);
+  console.log(`patched update checks: ${file}`);
+  patched = true;
+  break;
+}
+if (!patched) console.log('disable update checks: nothing to patch (already fixed or pattern changed)');
+NODE
+fi
+
 echo "replace: wcc,wcsc linux version"
 compiler_version=$(node "$root_dir/tools/parse-config.js" --get-compiler-version $@)
 arch=$(node "$root_dir/tools/parse-config.js" --get-arch $@)

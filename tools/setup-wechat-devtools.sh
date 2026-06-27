@@ -176,9 +176,7 @@ fi
 
 if [ $CURRENT_STEP == $INSTALL_REBUILD_SUCCESS ];then
   notice "Patching wechat-devtools"
-  if [ "$runtime" != "electron" ]; then
-    "$root_dir/tools/fix-menu.sh"
-  fi
+  "$root_dir/tools/fix-menu.sh" $@
 
   notice "Patching Other"
   "$root_dir/tools/fix-other.sh" $@

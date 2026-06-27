@@ -136,22 +136,21 @@
             nw.Window.open = function (url, options, callback) {
                 console.warn('[wechat-devtools] nw.Window.open is called, url:', url, 'options:', options);
                 let cb = callback
-                if (options.title === '版本更新提示') {
-                    options.inject_js_start = 'js/unpack/hackrequire/index.js';
-                    cb = (...args) => {
-                        const keys = [
-                            "shareData",
-                            "windowMap",
-                            "isSimple",
-                            "masterProxyPort",
-                            "proxyPort",
-                            "masterH2ProxyPort",
-                            "h2ProxyPort"
-                        ];
-                        for(let k of keys)
-                            args[0].window.global[k] = global[k];
-                        callback(...args)
+                if (options.title && options.title.indexOf('版本更新提示') === 0) {
+                    console.warn('[wechat-devtools] disable update prompt window:', url, options.title);
+                    const noopWindow = {
+                        on() {},
+                        once() {},
+                        removeAllListeners() {},
+                        hide() {},
+                        show() {},
+                        close() {},
+                        window: { global: {} }
+                    };
+                    if (typeof callback === 'function') {
+                        setTimeout(() => callback(noopWindow), 0);
                     }
+                    return noopWindow;
                 }
                 else if (options.title === '云开发控制台') {
                     cb = (...args) => {
